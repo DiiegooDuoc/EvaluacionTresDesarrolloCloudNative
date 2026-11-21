@@ -1,0 +1,140 @@
+logging:
+  level:
+    org:
+      springframework:
+        security: INFO
+        amqp: INFO
+        kafka: INFO
+      apache:
+        kafka: WARN
+    cl:
+      duoc:
+        dsy1107: DEBUG
+
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: dsy1107-pedidos-service
+
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:pedidosdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    driverClassName: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    database-platform: ${DB_DIALECT:org.hibernate.dialect.H2Dialect}
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: never
+
+  rabbitmq:
+    addresses: ${RABBITMQ_ADDRESSES:localhost:5672,localhost:5673}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    connection-timeout: 10000
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 10
+        default-requeue-rejected: false
+        missing-queues-fatal: false
+        auto-startup: ${RABBITMQ_LISTENERS_ENABLED:true}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092,localhost:29093,localhost:29094}
+    client-id: dsy1107-pedidos-client
+    producer:
+      acks: all
+      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "cl.duoc.dsy1107.dto,java.util,java.lang"
+        session.timeout.ms: 15000
+        max.poll.records: 50
+    listener:
+      ack-mode: record
+      missing-topics-fatal: false
+      auto-startup: ${KAFKA_LISTENERS_ENABLED:true}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER:https://login.microsoftonline.com/2843e3a1-23be-4d9b-859e-287a89fb4bc4/v2.0}
+          audiences:
+            - ${JWT_AUDIENCE_ID:9d3b8afe-2427-4cd5-8dcd-063b178d613c}
+
+app:
+  security:
+    issuer: ${JWT_ISSUER:https://login.microsoftonline.com/2843e3a1-23be-4d9b-859e-287a89fb4bc4/v2.0}
+    audience: ${JWT_AUDIENCE:api://9d3b8afe-2427-4cd5-8dcd-063b178d613c}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4200,http://127.0.0.1:5173}
+
+  rabbitmq:
+    max-retries: 2
+    exchanges:
+      direct: pedidos.direct.exchange
+      topic: pedidos.topic.exchange
+      dead-letter: pedidos.dlx.exchange
+    queues:
+      notificaciones:
+        name: pedidos.notificaciones.queue
+        dlq: pedidos.notificaciones.dlq
+        routing-key: pedidos.notificacion.rk
+        dlq-routing-key: pedidos.notificacion.dlq.rk
+      tickets:
+        name: pedidos.tickets.queue
+        dlq: pedidos.tickets.dlq
+        routing-key: pedidos.ticket.rk
+        dlq-routing-key: pedidos.ticket.dlq.rk
+      documentos:
+        name: pedidos.documentos.queue
+        dlq: pedidos.documentos.dlq
+        routing-key: pedidos.documento.#
+        publish-routing-key-prefix: pedidos.documento.
+        dlq-routing-key: pedidos.documento.dlq.rk
+
+  kafka:
+    max-retries: 2
+    backoff-ms: 1500
+    consumer-groups:
+      analitica: cg-analitica-ventas
+      alertas: cg-detector-alertas
+      operaciones: cg-monitoreo-inventario
+    topics:
+      ventas:
+        name: pedidos.streaming.ventas
+        partitions: 3
+        replicas: ${KAFKA_TOPIC_REPLICAS:3}
+        retention-ms: 604800000
+        cleanup-policy: delete
+        min-insync-replicas: ${KAFKA_MIN_ISR:2}
+      inventario:
+        name: pedidos.streaming.inventario
+        partitions: 3
+        replicas: ${KAFKA_TOPIC_REPLICAS:3}
+        retention-ms: 259200000
+        cleanup-policy: compact,delete
+        min-insync-replicas: ${KAFKA_MIN_ISR:2}

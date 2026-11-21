@@ -1,0 +1,44 @@
+server:
+  port: ${PORT:8082}
+
+spring:
+  application:
+    name: dsy1107-kafka-admin-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092,localhost:29093,localhost:29094}
+    client-id: dsy1107-kafka-admin-client
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER:https://login.microsoftonline.com/2843e3a1-23be-4d9b-859e-287a89fb4bc4/v2.0}
+          audiences:
+            - ${JWT_AUDIENCE_ID:9d3b8afe-2427-4cd5-8dcd-063b178d613c}
+
+app:
+  security:
+    issuer: ${JWT_ISSUER:https://login.microsoftonline.com/2843e3a1-23be-4d9b-859e-287a89fb4bc4/v2.0}
+    audience: ${JWT_AUDIENCE:api://9d3b8afe-2427-4cd5-8dcd-063b178d613c}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4200}
+  kafka:
+    max-retries: 2
+    backoff-ms: 1500
+    consumer-groups:
+      analitica: cg-analitica-ventas
+      alertas: cg-detector-alertas
+      operaciones: cg-monitoreo-inventario
+    topics:
+      ventas:
+        name: pedidos.streaming.ventas
+        partitions: 3
+        replicas: ${KAFKA_TOPIC_REPLICAS:3}
+        retention-ms: 604800000
+        cleanup-policy: delete
+        min-insync-replicas: ${KAFKA_MIN_ISR:2}
+      inventario:
+        name: pedidos.streaming.inventario
+        partitions: 3
+        replicas: ${KAFKA_TOPIC_REPLICAS:3}
+        retention-ms: 259200000
+        cleanup-policy: compact,delete
+        min-insync-replicas: ${KAFKA_MIN_ISR:2}
